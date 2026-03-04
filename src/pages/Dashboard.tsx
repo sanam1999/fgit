@@ -17,7 +17,7 @@ const statusData = [
   { name: "On Leave", value: employees.filter(e => e.status === "on-leave").length },
   { name: "Inactive", value: employees.filter(e => e.status === "inactive").length },
 ];
-toast({ title: "Error", description: "Failed to fetch balances", variant: "destructive" });
+// toast({ title: "Error", description: "Failed to fetch balances", variant: "destructive" });
 const PIE_COLORS = ["hsl(174, 62%, 32%)", "hsl(36, 90%, 55%)", "hsl(210, 12%, 70%)"];
 
 export default function Dashboard() {

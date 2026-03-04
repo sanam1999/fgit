@@ -6,6 +6,7 @@ import {
   UserCircle,
   FileText,
   DollarSign,
+
 } from "lucide-react";
 import { Link } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -27,6 +28,7 @@ const mainNav = [
   { title: "Employees", url: "/employees", icon: Users },
   { title: "Leave Management", url: "/leaves", icon: CalendarDays },
   { title: "Departments", url: "/departments", icon: Building2 },
+  { title: "Team Track", url: "/teamTrack", icon: Users },
 ];
 
 const managementNav = [

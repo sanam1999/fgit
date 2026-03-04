@@ -68,8 +68,8 @@ export default function Login() {
     };
 
     const logoMark = (
-        <div className="flex items-center gap-2 mb-8">
-            <div className="">
+        <div className="flex items-center justify-center gap-2 mb-8">
+            <div >
                 <img style={{ height: 40 }} src="/prolabr_logo.jpeg" alt="" />
             </div>
             <span className="text-lg font-semibold tracking-tight">Prolab R</span>
@@ -214,7 +214,7 @@ export default function Login() {
                 <ChevronLeft className="h-4 w-4" /> Back to login
             </button>
 
-           
+
 
             <h1 className="text-2xl font-bold tracking-tight mb-1">Forgot password?</h1>
             <p className="text-sm text-muted-foreground mb-6">

@@ -13,6 +13,8 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
 import Login from "./pages/Login"
+import TeamTrack from "./pages/TeamTrack"
+import AllWorkFlow from "./pages/AllWorkFlow";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +34,8 @@ const App = () => (
           <Route path="/payroll" element={<Payroll />} />
           <Route path="/documents" element={<Documents />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/teamTrack" element={<TeamTrack />} />
+          <Route path="/workflow/:id" element={<AllWorkFlow />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

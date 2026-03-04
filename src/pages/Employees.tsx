@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
@@ -247,6 +248,9 @@ export default function Employees() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add Employee</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              ID {1}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
