@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'http://localhost:3050';
 function buildQuery(params: Record<string, unknown> = {}) {
     return Object.keys(params).length
         ? '?' + new URLSearchParams(params as Record<string, string>).toString()

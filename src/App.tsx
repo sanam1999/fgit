@@ -15,6 +15,8 @@ import Notifications from "./pages/Notifications";
 import Login from "./pages/Login"
 import TeamTrack from "./pages/TeamTrack"
 import AllWorkFlow from "./pages/AllWorkFlow";
+import PrivacyPolicy from "./pages/PrivacyPolicy"
+import ProjectManage from "./pages/ProjectManager";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +38,9 @@ const App = () => (
           <Route path="/profile" element={<Profile />} />
           <Route path="/teamTrack" element={<TeamTrack />} />
           <Route path="/workflow/:id" element={<AllWorkFlow />} />
+          <Route path="/privacypolicy" element={<PrivacyPolicy />} />
+          <Route path="/projectmanage" element={<ProjectManage />} />
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

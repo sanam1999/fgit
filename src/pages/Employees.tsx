@@ -1,12 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { employees } from "@/data/mockData";
 import { Search, Plus, Mail, Phone } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { get, post, ApiError } from '../hooks/api';
 import {
   Dialog,
   DialogContent,
@@ -23,17 +21,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Employee } from "@/data/mockData";
 import { toast } from "sonner";
 
 const DEPARTMENT_NAMES = [
-  "Engineering",
-  "Design",
-  "Human Resources",
-  "Product",
-  "Marketing",
-  "Finance",
-  "Sales",
+  "Software Engineering Department",
+  "AI & Research Department",
+  "Cybersecurity Department",
+  "Project Management Office (PMO)",
+  "Sales & Business Development",
+  "Administration & Finance",
 ];
 
 const EMPTY_FORM = {
@@ -46,64 +42,86 @@ const EMPTY_FORM = {
   phone: "",
 };
 
+interface Attendance {
+  _id: string;
+  fullName: string;
+  email: string;
+  avatar: string;
+  phone: string;
+  department: string;
+  role: string;
+  status?: string;
+  joinDate: string;
+  salary?: number;
+  checkIn: string | null;
+  checkOut: string | null;
+}
+
 export default function Employees() {
   const [search, setSearch] = useState("");
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Attendance | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [employeeList, setEmployeeList] = useState<Employee[]>(employees);
+  const [employeeList, setEmployeeList] = useState<Attendance[]>([]);
 
-  const filtered = employeeList.filter(
-    (e) =>
-      e.name.toLowerCase().includes(search.toLowerCase()) ||
-      e.role.toLowerCase().includes(search.toLowerCase()) ||
-      e.department.toLowerCase().includes(search.toLowerCase())
-  );
+  async function getuserdata() {
+    try {
+      const res = await fetch(`http://localhost:3050/employees`);
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      const data: Attendance[] = await res.json();
+      // FIX 1: Removed stale closure console.log(employeeList) — state hasn't
+      // updated yet at this point so it always logged the old value.
+      setEmployeeList(data);
+      console.log(data)
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  useEffect(() => {
+    getuserdata();
+  }, []);
+
+  const filteredList = employeeList.filter((emp) => {
+    const q = search.toLowerCase();
+    return (
+      emp.fullName?.toLowerCase().includes(q) ||
+      emp.role?.toLowerCase().includes(q) ||
+      emp.department?.toLowerCase().includes(q) ||
+      emp.email?.toLowerCase().includes(q) ||
+      emp.phone?.toLowerCase().includes(q) ||
+      emp.status?.toLowerCase().includes(q)
+    );
+  });
 
   const handleFormChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
+
   const handleAddEmployee = async () => {
-    if (!form.name || !form.role || !form.department || !form.email) return;
 
-    const initials = form.name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-
-    const newEmployee: Employee = {
-      id: `emp-${Date.now()}`,
-      name: form.name,
-      role: form.role,
-      department: form.department,
-      status: "active",
-      joinDate: form.joinDate,
-      salary: Number(form.salary.replace(/[^0-9]/g, "")),
-      email: form.email,
-      phone: form.phone,
-      avatar: initials,
-    };
-
+    if (!form.name || !form.role || !form.department || !form.email || !form.joinDate) {
+      toast.error("Please fill in all required fields!");
+      return;
+    }
     try {
-      // 1. Call API first
-      const created = await post('/addemployee', form);
-
-      // 2. Use server response id instead of Date.now()
-      setEmployeeList((prev) => [...prev, { ...newEmployee, id: created.id ?? newEmployee.id }]);
+      const res = await fetch(`http://localhost:3050/addemployee`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error("Failed to update");
       setForm(EMPTY_FORM);
       setShowAddDialog(false);
       toast.success("Employee added successfully");
-
+      getuserdata();
     } catch (err) {
-      if (err instanceof ApiError) {
-        toast.error(err.message);        // show server error message
-      } else {
-        toast.error("Something went wrong");
-      }
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      toast.error(message);
     }
   };
+
+
 
   return (
     <AppLayout title="Employees">
@@ -131,31 +149,34 @@ export default function Employees() {
                 <tr className="border-b bg-muted/50">
                   <th className="text-left text-xs font-semibold text-muted-foreground p-3 pl-4">Employee</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground p-3 hidden md:table-cell">Role</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground p-3 hidden lg:table-cell">Department</th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground p-3 hidden lg:table-cell">Phone NO</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground p-3">Status</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground p-3 hidden lg:table-cell">Join Date</th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground p-3 hidden lg:table-cell">check In</th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground p-3 hidden lg:table-cell">check Out</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((emp) => (
+                {filteredList.map((emp) => (
+
                   <tr
-                    key={emp.id}
+                    key={emp._id}
                     className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
                     onClick={() => setSelectedEmployee(emp)}
                   >
+                    {void console.log(emp)}
                     <td className="p-3 pl-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
-                          {emp.avatar}
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
+                          <img style={{ borderRadius: 20 }} src={emp.avatar} alt="image not available" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium">{emp.name}</p>
+                          <p className="text-sm font-medium">{emp.fullName}</p>
                           <p className="text-xs text-muted-foreground md:hidden">{emp.role}</p>
                         </div>
                       </div>
                     </td>
                     <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">{emp.role}</td>
-                    <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{emp.department}</td>
+                    <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{emp.phone}</td>
                     <td className="p-3">
                       <Badge
                         variant="outline"
@@ -164,19 +185,32 @@ export default function Employees() {
                             ? "bg-success/10 text-success border-success/20"
                             : emp.status === "on-leave"
                               ? "bg-warning/10 text-warning border-warning/20"
-                              : "bg-muted text-muted-foreground"
+                              : "bg-red-500/10 text-red-500 border border-red-500/20"
+
                         }
                       >
                         {emp.status}
                       </Badge>
                     </td>
-                    <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{emp.joinDate}</td>
+
+                    <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{emp.checkIn ? new Date(emp.checkIn).toLocaleDateString('en-US', {
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true
+                    }) : "—"}</td>
+                    <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{emp.checkOut ? new Date(emp.checkOut).toLocaleDateString('en-US', {
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true
+                    }) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {filtered.length === 0 && (
+          {filteredList.length === 0 && (
             <div className="py-12 text-center text-muted-foreground text-sm">No employees found.</div>
           )}
         </Card>
@@ -191,14 +225,26 @@ export default function Employees() {
           {selectedEmployee && (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary text-lg font-bold">
-                  {selectedEmployee.avatar}
+                {/* FIX 2: Render avatar as <img> instead of raw string */}
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 overflow-hidden">
+                  <img
+                    src={selectedEmployee.avatar}
+                    alt={selectedEmployee.fullName}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">{selectedEmployee.name}</h3>
+                  <h3 className="font-semibold text-lg">{selectedEmployee.fullName}</h3>
                   <p className="text-sm text-muted-foreground">{selectedEmployee.role}</p>
                 </div>
               </div>
+              <p> Join Date:  {selectedEmployee.joinDate
+                ? new Date(selectedEmployee.checkIn).toLocaleDateString('en-US', {
+                  day: "numeric",
+                  year: "numeric",
+                  month: "numeric"
+                })
+                : "—"}</p>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-muted-foreground text-xs mb-0.5">Department</p>
@@ -213,19 +259,37 @@ export default function Employees() {
                         ? "bg-success/10 text-success border-success/20"
                         : selectedEmployee.status === "on-leave"
                           ? "bg-warning/10 text-warning border-warning/20"
-                          : "bg-muted text-muted-foreground"
+                          : "bg-red-500/10 text-red-500 border border-red-500/20"
+
                     }
                   >
                     {selectedEmployee.status}
                   </Badge>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Join Date</p>
-                  <p className="font-medium">{selectedEmployee.joinDate}</p>
+                  <p className="text-muted-foreground text-xs mb-0.5">Check In</p>
+                  <p className="font-medium">{
+                    selectedEmployee.checkIn
+                      ? new Date(selectedEmployee.checkIn).toLocaleDateString('en-US', {
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true
+                      })
+                      : "—"}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Salary</p>
-                  <p className="font-medium">${selectedEmployee.salary.toLocaleString()}</p>
+                  <p className="text-muted-foreground text-xs mb-0.5">Check Out</p>
+                  {/* FIX 3: Was showing checkIn for both, and had a stray $ sign */}
+                  <p className="font-medium">{
+                    selectedEmployee.checkOut
+                      ? new Date(selectedEmployee.checkOut).toLocaleDateString('en-US', {
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true
+                      })
+                      : "—"}</p>
                 </div>
               </div>
               <div className="space-y-2 pt-2 border-t">
@@ -237,6 +301,7 @@ export default function Employees() {
                   <Phone className="h-4 w-4 text-muted-foreground" />
                   <span>{selectedEmployee.phone}</span>
                 </div>
+
               </div>
             </div>
           )}
@@ -248,13 +313,9 @@ export default function Employees() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add Employee</DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              ID {1}
-            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Name & Role */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="name">Full Name <span className="text-destructive">*</span></Label>
@@ -276,7 +337,6 @@ export default function Employees() {
               </div>
             </div>
 
-            {/* Department */}
             <div className="space-y-1.5">
               <Label>Department <span className="text-destructive">*</span></Label>
               <Select
@@ -294,10 +354,9 @@ export default function Employees() {
               </Select>
             </div>
 
-            {/* Join Date & Salary */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="joinDate">Join Date</Label>
+                <Label htmlFor="joinDate">Join Date <span className="text-destructive">*</span></Label>
                 <Input
                   id="joinDate"
                   type="date"
@@ -306,9 +365,10 @@ export default function Employees() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="salary">Salary</Label>
+                <Label htmlFor="salary">Salary </Label>
                 <Input
                   id="salary"
+
                   type="number"
                   placeholder="LKR 50,000"
                   value={form.salary}
@@ -317,7 +377,6 @@ export default function Employees() {
               </div>
             </div>
 
-            {/* Email & Phone */}
             <div className="space-y-3 pt-1 border-t">
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="flex items-center gap-1.5">
@@ -353,7 +412,7 @@ export default function Employees() {
             </Button>
             <Button
               onClick={handleAddEmployee}
-              disabled={!form.name || !form.role || !form.department || !form.email}
+              disabled={!form.name || !form.role || !form.department || !form.email || !form.joinDate}
             >
               <Plus className="h-4 w-4 mr-1.5" />
               Add Employee

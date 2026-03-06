@@ -1,14 +1,15 @@
 import {
   LayoutDashboard,
   Users,
+  Shield,
   CalendarDays,
   Building2,
   UserCircle,
   FileText,
   DollarSign,
+  ClipboardCheck,
 
 } from "lucide-react";
-import { Link } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -29,11 +30,14 @@ const mainNav = [
   { title: "Leave Management", url: "/leaves", icon: CalendarDays },
   { title: "Departments", url: "/departments", icon: Building2 },
   { title: "Team Track", url: "/teamTrack", icon: Users },
+  { title: "Project Management", url: "/ProjectManage", icon: ClipboardCheck }
+
 ];
 
 const managementNav = [
   { title: "Payroll", url: "/payroll", icon: DollarSign },
   { title: "Documents", url: "/documents", icon: FileText },
+  { title: "Privacy Policy", url: "/privacypolicy", icon: Shield }
 ];
 
 export function AppSidebar() {

@@ -124,7 +124,7 @@ export default function Dashboard() {
                 <div key={leave.id} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                      {leave.employeeName.split(" ").map(n => n[0]).join("")}
+                      {/* {leave.employeeName.split(" ").map(n => n[0]).join("")} */}
                     </div>
                     <div>
                       <p className="text-sm font-medium">{leave.employeeName}</p>

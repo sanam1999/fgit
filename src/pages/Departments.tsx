@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { departments, employees } from "@/data/mockData";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, DollarSign, User, ChevronLeft, Mail, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -11,17 +10,72 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { Department, Employee } from "@/data/mockData";
+
+export interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  department: string;
+  status: "active" | "on-leave" | "inactive";
+  joinDate: string;
+  avatar: string;
+  phone: string;
+  salary: number;
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  head: string;
+  employeeCount: number;
+  budget: number;
+}
 
 const PRIMARY = "#1F8278";
 
 export default function Departments() {
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [deptEmployees, setDeptEmployees] = useState<Employee[]>([]);
 
-  const deptEmployees = selectedDept
-    ? employees.filter((e) => e.department === selectedDept.name)
-    : [];
+  async function getDepartments() {
+    try {
+      const res = await fetch("http://localhost:3050/departments");
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      const data: Department[] = await res.json();
+      setDepartments(data);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function getEmployees(id: string) {
+    try {
+      const res = await fetch(`http://localhost:3050/deparment/employees/${id}`);
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      const data: Employee[] = await res.json();
+      setDeptEmployees(data);
+      console.log(data)
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  useEffect(() => {
+    getDepartments();
+  }, []);
+
+  function handleDeptClick(dept: Department) {
+    setSelectedDept(dept);
+    getEmployees(dept.id);
+  }
+
+  function handleBack() {
+    setSelectedDept(null);
+    setDeptEmployees([]);
+  }
 
   // ─── DEPARTMENT DETAIL PAGE ───────────────────────────────────────────────
   if (selectedDept) {
@@ -90,7 +144,10 @@ export default function Departments() {
                       className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold shrink-0"
                       style={{ backgroundColor: `${PRIMARY}18`, color: PRIMARY }}
                     >
-                      {emp.avatar}
+
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
+                        <img style={{ borderRadius: 20 }} src={emp.avatar} alt="image not available" />
+                      </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{emp.name}</p>
@@ -128,7 +185,10 @@ export default function Departments() {
                     className="flex h-14 w-14 items-center justify-center rounded-full text-lg font-bold shrink-0"
                     style={{ backgroundColor: `${PRIMARY}18`, color: PRIMARY }}
                   >
-                    {selectedEmployee.avatar}
+
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
+                      <img style={{ borderRadius: 20 }} src={selectedEmployee.avatar} alt="image not available" />
+                    </div>
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">{selectedEmployee.name}</h3>
@@ -193,7 +253,7 @@ export default function Departments() {
             key={dept.id}
             className="shadow-sm hover:shadow-md transition-shadow cursor-pointer animate-fade-in"
             style={{ animationDelay: `${i * 80}ms` }}
-            onClick={() => setSelectedDept(dept)}
+            onClick={() => handleDeptClick(dept)}
           >
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-4">
