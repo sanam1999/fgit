@@ -5,11 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LogOut, Building2, Mail, Phone, Briefcase, Calendar, Shield } from "lucide-react";
 import { toast } from "../hooks/use-toast";
+import { useAuth } from "../context/AuthContext";
+const token = localStorage.getItem("token");
 
 // Static data that doesn't come from the server
 const STATIC_INFO = {
-
-  company: "Acme Corp",
+  company: "Prolab R",
   industry: "Technology",
   annualLeave: 21,
   sickLeave: 10,
@@ -23,7 +24,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value
   return (
     <div className="flex items-center gap-3 py-3 border-b last:border-0">
       <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
-        <Icon className="w-4 h-4 text-violet-500" />
+        <Icon className="w-4 h-4" style={{ color: "#288b81" }} />
       </div>
       <div>
         <p className="text-xs text-gray-400">{label}</p>
@@ -47,12 +48,22 @@ interface Employee {
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { logout, user: authUser } = useAuth();
   const [user, setUser] = useState<Employee | null>(null);
 
   async function getuserdata() {
     try {
-      const _id = "69a89d5f3c349873e08e1c37";
-      const res = await fetch(`http://localhost:3050/profile/${_id}`);
+      const _id = authUser?.id;
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/profile/${_id}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+      });
+      if (res.status === 402) {
+        navigate("/unauthorized", { replace: true });
+        return; // ← stop execution after redirect
+      }
       if (!res.ok) throw new Error(`Request failed: ${res.status}`);
       const data: Employee = await res.json();
       setUser(data);
@@ -66,11 +77,12 @@ export default function Profile() {
   }, []);
 
   const handleLogout = () => {
+    logout();
     toast({
       title: "Success",
       description: "Logged out successfully.",
     });
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   if (!user) return (
@@ -89,13 +101,13 @@ export default function Profile() {
             {user.avatar ? (
               <img src={user.avatar} alt="avatar" className="w-full h-full object-cover rounded-full" />
             ) : (
-              getInitials(user.name) // ✅ from API
+              getInitials(user.name)
             )}
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">{user.name}</h2>         {/* ✅ API */}
-            <p className="text-sm text-violet-600 font-medium">{user.role}</p>            {/* ✅ API */}
-            <p className="text-xs text-gray-400 mt-0.5">{STATIC_INFO.company}</p>        {/* static */}
+            <h2 className="text-xl font-semibold text-gray-900">{user.name}</h2>
+            <p className="text-sm text-violet-600 font-medium">{user.role}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{STATIC_INFO.company}</p>
           </div>
         </div>
 
@@ -103,9 +115,9 @@ export default function Profile() {
         <Card className="w-full shadow-sm">
           <CardContent className="pt-4 pb-2 px-5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Personal</p>
-            <InfoRow icon={Mail} label="Email" value={user.email} />               {/* ✅ API */}
-            <InfoRow icon={Phone} label="Phone" value={user.phone} />               {/* ✅ API */}
-            <InfoRow icon={Calendar} label="Joined" value={new Date(user.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })} />     {/* static */}
+            <InfoRow icon={Mail} label="Email" value={user.email} />
+            <InfoRow icon={Phone} label="Phone" value={user.phone} />
+            <InfoRow icon={Calendar} label="Joined" value={new Date(user.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })} />
           </CardContent>
         </Card>
 
@@ -113,9 +125,9 @@ export default function Profile() {
         <Card className="w-full shadow-sm">
           <CardContent className="pt-4 pb-2 px-5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Company</p>
-            <InfoRow icon={Building2} label="Company" value="Prolab R" />    {/* static */}
-            <InfoRow icon={Briefcase} label="Department" value={user.department} />        {/* ✅ API */}
-            <InfoRow icon={Shield} label="Industry" value={STATIC_INFO.industry} />   {/* static */}
+            <InfoRow icon={Building2} label="Company" value="Prolab R" />
+            <InfoRow icon={Briefcase} label="Department" value={user.department} />
+            <InfoRow icon={Shield} label="Industry" value={STATIC_INFO.industry} />
           </CardContent>
         </Card>
 
@@ -125,11 +137,11 @@ export default function Profile() {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Leave Policy</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-violet-50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-violet-600">{STATIC_INFO.annualLeave}</p>  {/* static */}
+                <p className="text-2xl font-bold text-violet-600">{STATIC_INFO.annualLeave}</p>
                 <p className="text-xs text-gray-500 mt-0.5">Annual Leave Days</p>
               </div>
               <div className="bg-emerald-50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-emerald-600">{STATIC_INFO.sickLeave}</p>   {/* static */}
+                <p className="text-2xl font-bold text-emerald-600">{STATIC_INFO.sickLeave}</p>
                 <p className="text-xs text-gray-500 mt-0.5">Sick Leave Days</p>
               </div>
             </div>

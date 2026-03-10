@@ -30,13 +30,6 @@ export interface Department {
   budget: number;
 }
 
-export interface Project {
-  id: string;
-  name: string;
-  pct: number;
-  memberIds: string[];
-}
-
 async function fetchOrEmpty<T>(url: string): Promise<{ data: T[]; error: string | null }> {
   try {
     const res = await fetch(url);
@@ -53,23 +46,31 @@ async function fetchOrEmpty<T>(url: string): Promise<{ data: T[]; error: string 
 export let employees: Employee[] = [];
 export let leaveRequests: LeaveRequest[] = [];
 export let departments: Department[] = [];
-export let projects: Project[] = [];
+
 
 export async function initData() {
-  const [e, l, d, p] = await Promise.all([
-    fetchOrEmpty<Employee>("http://localhost:3050/api/employees"),
-    fetchOrEmpty<LeaveRequest>("http://localhost:3050/api/leaveRequests"),
-    fetchOrEmpty<Department>("http://localhost:3050/departments"),
-    fetchOrEmpty<Project>("http://localhost:3050/api/projects"),
+  const [l, d] = await Promise.all([
+
+    fetchOrEmpty<LeaveRequest>(`${import.meta.env.VITE_API_BASE_URL}/api/leaveRequests`),
+    fetchOrEmpty<Department>(`${import.meta.env.VITE_API_BASE_URL}/departments`),
+
   ]);
 
-  if (e.error) console.error("❌ Employees fetch failed:", e.error);
+
   if (l.error) console.error("❌ Leave requests fetch failed:", l.error);
   if (d.error) console.error("❌ Departments fetch failed:", d.error);
-  if (p.error) console.error("❌ Projects fetch failed:", p.error);
 
-  employees = e.data;
+
+  employees = [];
   leaveRequests = l.data;
   departments = d.data;
-  projects = p.data;
+
 }
+export const DEPARTMENTS = [
+  "Software Engineering Department",
+  "AI & Research Department",
+  "Cybersecurity Department",
+  "Project Management Office (PMO)",
+  "Marketing & Branding",
+  "Administration & Finance"
+];

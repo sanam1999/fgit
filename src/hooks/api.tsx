@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:3050';
+const BASE_URL = '${import.meta.env.VITE_API_BASE_URL}';
 function buildQuery(params: Record<string, unknown> = {}) {
     return Object.keys(params).length
         ? '?' + new URLSearchParams(params as Record<string, string>).toString()

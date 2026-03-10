@@ -2,7 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import Leaves from "./pages/Leaves";
@@ -12,39 +14,47 @@ import Documents from "./pages/Documents";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
-import Login from "./pages/Login"
-import TeamTrack from "./pages/TeamTrack"
+import Login from "./pages/Login";
+import TeamTrack from "./pages/TeamTrack";
 import AllWorkFlow from "./pages/AllWorkFlow";
-import PrivacyPolicy from "./pages/PrivacyPolicy"
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ProjectManage from "./pages/ProjectManager";
+import Unauthorized from "./pages/Unauthorized";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/employees" element={<Employees />} />
-          <Route path="/leaves" element={<Leaves />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/departments" element={<Departments />} />
-          <Route path="/payroll" element={<Payroll />} />
-          <Route path="/documents" element={<Documents />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/teamTrack" element={<TeamTrack />} />
-          <Route path="/workflow/:id" element={<AllWorkFlow />} />
-          <Route path="/privacypolicy" element={<PrivacyPolicy />} />
-          <Route path="/projectmanage" element={<ProjectManage />} />
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/privacypolicy" element={<PrivacyPolicy />} />
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+            {/* Protected routes — redirect to /login if not authenticated */}
+            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+            <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
+            <Route path="/leaves" element={<ProtectedRoute><Leaves /></ProtectedRoute>} />
+            <Route path="/departments" element={<ProtectedRoute><Departments /></ProtectedRoute>} />
+            <Route path="/payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
+            <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/teamTrack" element={<ProtectedRoute><TeamTrack /></ProtectedRoute>} />
+            <Route path="/workflow/:_id" element={<ProtectedRoute><AllWorkFlow /></ProtectedRoute>} />
+            <Route path="/projectmanage" element={<ProtectedRoute><ProjectManage /></ProtectedRoute>} />
+
+            {/* Fallback */}
+            <Route path="/unauthorized" element={<Unauthorized />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

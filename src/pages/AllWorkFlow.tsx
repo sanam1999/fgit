@@ -1,5 +1,8 @@
 import { AppLayout } from "@/components/AppLayout";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+const token = localStorage.getItem("token");
 
 (() => {
   if (document.getElementById("__wf_fonts")) return;
@@ -36,65 +39,25 @@ const BADGE: Record<string, { color: string; border: string }> = {
 };
 
 interface EmployeeData {
-  name: string; role: string; dept: string; deptSub: string;
-  totalProjects: number; workingDays: number; workingHours: number;
-  status: string; weeklyHours: number[];
+  name: string;
+  deparment: string;
+  totalproject: number;
+  totalwaorkingday: number;
+  totalHours: number;
+  status: string;
+  weeklyHours: number[];
+  present: number;
+  absent: number;
+  late: number;
+  half_day: number;
+  completeProject: number;
   projects: { label: string; pct: number }[];
 }
+
 interface LogTask { time: string; desc: string; }
-interface LogEntry { date: string; entryTime: string; leaveTime: string; summary: string; tasks: LogTask[]; }
+interface LogEntry { date: string; entryTime: string; leaveTime: string; tasks: LogTask[]; }
 
-const EMPLOYEE: EmployeeData = {
-  name: "Alex Morgan", role: "employee", dept: "DevOps", deptSub: "division",
-  totalProjects: 7, workingDays: 48, workingHours: 384, status: "active",
-  weeklyHours: [8, 7.5, 8.5, 10, 7, 8, 7.5, 9, 6, 8, 8, 7.5, 5, 2],
-  projects: [
-    { label: "Pearl City Pos", pct: 35 },
-    { label: "Money Management", pct: 25 },
-    { label: "Network Defense System", pct: 20 },
-    { label: "Prolab R", pct: 20 },
-    { label: "Pearl City Pos", pct: 35 },
-    { label: "Money Management", pct: 25 },
-  ],
-};
 
-const LOGS: LogEntry[] = [
-  {
-    date: "2026/01/02", entryTime: "08.00 AM", leaveTime: "04.00 PM",
-    summary: "server up",
-    tasks: [{ time: "All day", desc: "Monitored server health and confirmed all services running correctly." }],
-  },
-  {
-    date: "2026/01/03", entryTime: "8.12", leaveTime: "3.49 pm",
-    summary: "VPS setup and install all dependencies",
-    tasks: [
-      { time: "10.00 am", desc: "Introduction to VPS hosting environment and server access setup" },
-      { time: "12.00 pm", desc: "Configured Nginx reverse proxy and SSL certificates" },
-      { time: "02.00 pm", desc: "Installed Node.js, PM2, and all project dependencies" },
-      { time: "End of day", desc: "Introduction to VPS hosting environment and server access" },
-    ],
-  },
-  {
-    date: "2026/01/04", entryTime: "09.00 AM", leaveTime: "05.15 PM",
-    summary: "Database migration and environment config updates completed",
-    tasks: [
-      { time: "09.00 am", desc: "Reviewed migration scripts and backup procedures" },
-      { time: "11.00 am", desc: "Ran database migration on staging environment" },
-      { time: "01.00 pm", desc: "Updated .env config files across all services" },
-      { time: "End of day", desc: "Verified all services healthy post-migration" },
-    ],
-  },
-  {
-    date: "2026/01/05", entryTime: "08.45 AM", leaveTime: "04.30 PM",
-    summary: "CI pipeline setup and automated deployment scripts",
-    tasks: [
-      { time: "09.00 am", desc: "Set up GitHub Actions workflow for CI" },
-      { time: "11.30 am", desc: "Wrote deploy.sh script for zero-downtime deploys" },
-      { time: "02.00 pm", desc: "Tested pipeline end-to-end on dev branch" },
-      { time: "End of day", desc: "Merged CI config to main, pipeline passing" },
-    ],
-  },
-];
 
 // ── Single ring ───────────────────────────────────────────────────────────────
 function RingChart({ label, pct }: { label: string; pct: number }) {
@@ -150,7 +113,7 @@ function ProjectRings({ data }: { data: { label: string; pct: number }[] }) {
       gap: "16px 20px",
       width: "100%",
     }}>
-      {data.map((d, i) => <RingChart key={i} label={d.label} pct={d.pct} />)}
+      {data.map((d, i) => <RingChart key={`${d.label}-${i}`} label={d.label} pct={d.pct} />)}
     </div>
   );
 }
@@ -158,7 +121,6 @@ function ProjectRings({ data }: { data: { label: string; pct: number }[] }) {
 // ── Weekly chart ──────────────────────────────────────────────────────────────
 const DAY_LABELS = ["M", "T", "W", "T", "F", "M", "T", "W", "T", "F", "M", "T", "W"];
 
-// Color bands: 0 → grey  |  <7 → red  |  7–7.5 → yellow  |  7.6–8.2 → green  |  >8.2 → dark green
 function hourColor(h: number): string {
   if (h <= 0) return DIVIDER;
   if (h < 7) return "#ef4444";
@@ -202,6 +164,7 @@ function StatCard({ label, value, sub, children }: {
   label: string; value?: string; sub?: string; children?: React.ReactNode;
 }) {
   return (
+
     <div style={{
       flex: 1, minWidth: 0,
       background: WHITE, border: `1px solid ${DIVIDER}`,
@@ -216,6 +179,7 @@ function StatCard({ label, value, sub, children }: {
           <div style={{ fontFamily: mono, fontSize: 20, fontWeight: 600, color: TEXT, lineHeight: 1.2, letterSpacing: "-0.3px" }}>
             {value}
           </div>
+
           <div style={{ fontFamily: mono, fontSize: 12, fontWeight: 400, color: TEXT3 }}>{sub}</div>
         </>
       )}
@@ -224,34 +188,25 @@ function StatCard({ label, value, sub, children }: {
 }
 
 // ── Employee details ──────────────────────────────────────────────────────────
-function EmployeeDetails() {
-  const emp = EMPLOYEE;
+function EmployeeDetails({ emp }: { emp: EmployeeData }) {
+  const totalWorkingHours = emp.totalwaorkingday * 8;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <StatCard label="NAME" value={emp.name} sub={emp.role} />
-        <StatCard label="DEPARTMENT" value={emp.dept} sub={emp.deptSub} />
-        <StatCard label="TOTAL PROJECTS" value={String(emp.totalProjects).padStart(2, "0")} sub="active / completed" />
+        <StatCard label="NAME" value={emp.name} sub="employee" />
+        <StatCard label="DEPARTMENT" value={emp.deparment} sub="division" />
+        <StatCard label="TOTAL PROJECTS" value={String(emp.totalproject).padStart(2, "0")} sub="active" />
+        <StatCard label="TOTAL Complete PROJECTS" value={String(emp.completeProject)} sub="completed" />
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <StatCard label="TOTAL WORKING DAYS" value={String(emp.workingDays)} sub="this quarter" />
-        <StatCard label="WORKING HOURS" value={`${emp.workingHours}h`} sub="avg 8h / day" />
-        <StatCard label="STATUS">
-          <div style={{ marginTop: 2 }}>
-            <span style={{
-              display: "inline-flex", alignItems: "center",
-              padding: "4px 13px", borderRadius: 999,
-              border: `1.5px solid ${(BADGE[emp.status] || BADGE.inactive).border}`,
-              color: (BADGE[emp.status] || BADGE.inactive).color,
-              fontFamily: mono, fontSize: 12, fontWeight: 500,
-            }}>
-              {emp.status}
-            </span>
-          </div>
-          <div style={{ fontFamily: mono, fontSize: 12, fontWeight: 400, color: TEXT3, marginTop: 4 }}>
-            {emp.status === "active" ? "server up" : emp.status === "on-leave" ? "currently away" : "account inactive"}
-          </div>
-        </StatCard>
+        <StatCard label="TOTAL WORKING DAYS" value={String(emp.totalwaorkingday)} />
+        <StatCard label="Late Days" value={String(emp.late)} />
+        <StatCard label="Half Days" value={String(emp.half_day)} />
+        <StatCard label="Absent Days" value={String(emp.absent)} />
+
+        <StatCard label="WORKING HOURS" value={`${emp.totalHours.toFixed(1) }h`} />
+        <StatCard label="AVG WORKING HOURS" value={` ${emp.totalwaorkingday == 0 ? emp.totalHours.toFixed(1) : (emp.totalHours / emp.totalwaorkingday).toFixed(1) }h`} />
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         {/* Weekly hours */}
@@ -276,42 +231,54 @@ function EmployeeDetails() {
 // ── Log row ───────────────────────────────────────────────────────────────────
 function LogRow({ log, isOpen, onToggle }: { log: LogEntry; isOpen: boolean; onToggle: () => void }) {
   return (
-    <div style={{ background: WHITE, border: `1px solid ${DIVIDER}`, borderRadius: 10, overflow: "hidden" }}>
+    <div style={{ background: WHITE, border: `1px solid ${DIVIDER}`, borderRadius: 14, overflow: "hidden" }}>
       <div
         onClick={onToggle}
         style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "13px 18px", gap: 14,
+          display: "flex", alignItems: "center",
+          padding: "18px 22px", gap: 16,
           cursor: "pointer",
-          background: isOpen ? ACCENT_LT : WHITE,
-          transition: "background 0.1s",
           userSelect: "none" as const,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 18, flexShrink: 0, color: isOpen ? ACCENT : TEXT3, fontFamily: mono, transition: "color 1s" }}>
-            {isOpen ? "⇣" : "→"}
-          </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ fontFamily: mono, fontSize: 11, fontWeight: 400, color: TEXT2, flexShrink: 0 }}>
-                Entry {log.entryTime}
-              </span>
-              <span style={{ fontFamily: mono, fontSize: 13, fontWeight: 500, color: TEXT, flex: 1, textAlign: "center", letterSpacing: "-0.1px" }}>
-                {log.summary}
-              </span>
-            </div>
-            <div style={{ fontFamily: mono, fontSize: 11, fontWeight: 400, color: TEXT3, marginTop: 2 }}>
-              Leave {log.leaveTime}
-            </div>
+        {/* Play arrow in rounded square */}
+        <div style={{
+          width: 36, height: 36, borderRadius: 10,
+          background: "#f0f2f5",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+          transition: "transform 0.2s ease",
+          transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+        }}>
+          <svg width="11" height="13" viewBox="0 0 11 13" fill="none">
+            <path d="M1 1L10 6.5L1 12V1Z" fill="#6b7280" />
+          </svg>
+        </div>
+
+        {/* Date + time info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 16, fontWeight: 700, color: TEXT2, letterSpacing: "-0.1px" }}>
+            {log.date}
+          </div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: TEXT3, marginTop: 3 }}>
+            {log.entryTime} → {log.leaveTime} · {log.tasks.length} tasks
           </div>
         </div>
-        <div style={{ fontFamily: mono, fontSize: 11, fontWeight: 400, color: TEXT3, flexShrink: 0 }}>
-          {log.date}
+
+        {/* Entries pill */}
+        <div style={{
+          fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700,
+          color: ACCENT, background: ACCENT_LT,
+          padding: "6px 16px", borderRadius: 99,
+          flexShrink: 0,
+        }}>
+          {log.tasks.length} entries
         </div>
       </div>
+
+      {/* Expanded tasks */}
       {isOpen && (
-        <div style={{ borderTop: `1px solid ${DIVIDER}`, padding: "8px 18px 14px 42px" }}>
+        <div style={{ borderTop: `1px solid ${DIVIDER}`, padding: "8px 22px 14px 74px" }}>
           {log.tasks.map((task, i) => (
             <div key={i} style={{
               display: "flex", gap: 18, padding: "7px 0",
@@ -330,13 +297,102 @@ function LogRow({ log, isOpen, onToggle }: { log: LogEntry; isOpen: boolean; onT
     </div>
   );
 }
+// ── Loading skeleton ──────────────────────────────────────────────────────────
+function LoadingSkeleton() {
+  const skeletonStyle = {
+    background: `linear-gradient(90deg, ${DIVIDER} 25%, #f5f9f7 50%, ${DIVIDER} 75%)`,
+    backgroundSize: "200% 100%",
+    animation: "shimmer 1.4s infinite",
+    borderRadius: 8,
+  };
+  return (
+    <>
+      <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {[1, 2].map(row => (
+          <div key={row} style={{ display: "flex", gap: 10 }}>
+            {[1, 2, 3].map(col => (
+              <div key={col} style={{ flex: 1, height: 80, ...skeletonStyle }} />
+            ))}
+          </div>
+        ))}
+        <div style={{ height: 160, ...skeletonStyle }} />
+      </div>
+    </>
+  );
+}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-export default function AllWorkFlow({ employee, logs }: { employee?: EmployeeData; logs?: LogEntry[] }) {
-  const emp = employee || EMPLOYEE;
-  const entries = logs || LOGS;
-  const [openIndex, setOpenIndex] = useState<number | null>(1);
-  const initials = emp.name.split(" ").map(n => n[0]).join("");
+export default function AllWorkFlow() {
+  const navigate = useNavigate();
+  const { _id } = useParams();
+  const [empData, setEmpData] = useState<EmployeeData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+  const [logsError, setLogsError] = useState<string | null>(null);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!_id) return;
+
+    const fetchEmployee = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/teamtrack/employeestatics/${_id}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+        if (res.status === 402) {
+          navigate("/unauthorized", { replace: true });
+          return; // ← stop execution after redirect
+        }
+        if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
+        const data: EmployeeData = await res.json();
+        setEmpData(data);
+      } catch (err: any) {
+        setError(err.message || "Failed to load employee data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchLogs = async () => {
+      try {
+        setLogsLoading(true);
+        setLogsError(null);
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/teamtrack/logdata/${_id}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+        if (res.status === 402) {
+          navigate("/unauthorized", { replace: true });
+          return; // ← stop execution after redirect
+        }
+        if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
+        const data: LogEntry[] = await res.json();
+        setLogs(data);
+      } catch (err: any) {
+        setLogsError(err.message || "Failed to load log data");
+      } finally {
+        setLogsLoading(false);
+      }
+    };
+
+    fetchEmployee();
+    fetchLogs();
+  }, [_id]);
+
+  const initials = empData?.name
+    ? empData.name.split(" ").map((n: string) => n[0]).join("")
+    : "??";
 
   return (
     <AppLayout title="All Work Flow">
@@ -366,7 +422,20 @@ export default function AllWorkFlow({ employee, logs }: { employee?: EmployeeDat
             </span>
             <div style={{ flex: 1, height: 1, background: DIVIDER }} />
           </div>
-          <EmployeeDetails />
+
+          {loading && <LoadingSkeleton />}
+
+          {error && (
+            <div style={{
+              padding: "16px 20px", borderRadius: 10,
+              background: "#fff5f5", border: "1px solid #fecaca",
+              fontFamily: mono, fontSize: 13, color: "#dc2626",
+            }}>
+              ⚠ {error}
+            </div>
+          )}
+
+          {!loading && !error && empData && <EmployeeDetails emp={empData} />}
         </div>
 
         {/* Logs */}
@@ -374,12 +443,28 @@ export default function AllWorkFlow({ employee, logs }: { employee?: EmployeeDat
           <div style={{ fontFamily: mono, fontSize: 15, fontWeight: 600, color: TEXT3, marginBottom: 12 }}>
             Daily logs
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {entries.map((log, i) => (
-              <LogRow key={i} log={log} isOpen={openIndex === i}
-                onToggle={() => setOpenIndex(openIndex === i ? null : i)} />
-            ))}
-          </div>
+
+          {logsLoading && <LoadingSkeleton />}
+
+          {logsError && (
+            <div style={{
+              padding: "16px 20px", borderRadius: 10,
+              background: "#fff5f5", border: "1px solid #fecaca",
+              fontFamily: mono, fontSize: 13, color: "#dc2626",
+            }}>
+              ⚠ {logsError}
+            </div>
+          )}
+
+          {!logsLoading && !logsError && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {logs.map((log, i) => (
+
+                <LogRow key={log.date} log={log} isOpen={openIndex === i}
+                  onToggle={() => { setOpenIndex(openIndex === i ? null : i) }} />
+              ))}
+            </div>
+          )}
         </div>
 
       </div>

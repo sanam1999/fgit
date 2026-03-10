@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+const token = localStorage.getItem("token");
 
 const DEPARTMENT_NAMES = [
   "Software Engineering Department",
@@ -58,6 +60,7 @@ interface Attendance {
 }
 
 export default function Employees() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Attendance | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -66,13 +69,22 @@ export default function Employees() {
 
   async function getuserdata() {
     try {
-      const res = await fetch(`http://localhost:3050/employees`);
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/employees`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      if (res.status === 402) {
+        navigate("/unauthorized", { replace: true });
+        return; // ← stop execution after redirect
+      }
       if (!res.ok) throw new Error(`Request failed: ${res.status}`);
       const data: Attendance[] = await res.json();
       // FIX 1: Removed stale closure console.log(employeeList) — state hasn't
       // updated yet at this point so it always logged the old value.
       setEmployeeList(data);
-      console.log(data)
+
     } catch (error) {
       console.log(error);
     }
@@ -105,11 +117,18 @@ export default function Employees() {
       return;
     }
     try {
-      const res = await fetch(`http://localhost:3050/addemployee`, {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/addemployee`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify(form),
       });
+      if (res.status === 402) {
+        navigate("/unauthorized", { replace: true });
+        return; // ← stop execution after redirect
+      }
       if (!res.ok) throw new Error("Failed to update");
       setForm(EMPTY_FORM);
       setShowAddDialog(false);
@@ -163,7 +182,7 @@ export default function Employees() {
                     className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
                     onClick={() => setSelectedEmployee(emp)}
                   >
-                    {void console.log(emp)}
+
                     <td className="p-3 pl-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">

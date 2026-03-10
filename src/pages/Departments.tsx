@@ -3,16 +3,12 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, DollarSign, User, ChevronLeft, Mail, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+const token = localStorage.getItem("token");
 
 export interface Employee {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   role: string;
@@ -35,14 +31,23 @@ export interface Department {
 const PRIMARY = "#1F8278";
 
 export default function Departments() {
+  const navigate = useNavigate();
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [deptEmployees, setDeptEmployees] = useState<Employee[]>([]);
 
   async function getDepartments() {
     try {
-      const res = await fetch("http://localhost:3050/departments");
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/departments`,{
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      if (res.status === 402) {
+        navigate("/unauthorized", { replace: true });
+        return; // ← stop execution after redirect
+      }
       if (!res.ok) throw new Error(`Request failed: ${res.status}`);
       const data: Department[] = await res.json();
       setDepartments(data);
@@ -53,11 +58,19 @@ export default function Departments() {
 
   async function getEmployees(id: string) {
     try {
-      const res = await fetch(`http://localhost:3050/deparment/employees/${id}`);
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/deparment/employees/${id}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      if (res.status === 402) {
+        navigate("/unauthorized", { replace: true });
+        return; // ← stop execution after redirect
+      }
       if (!res.ok) throw new Error(`Request failed: ${res.status}`);
       const data: Employee[] = await res.json();
       setDeptEmployees(data);
-      console.log(data)
     } catch (error) {
       console.error(error);
     }
@@ -136,10 +149,8 @@ export default function Departments() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {deptEmployees.map((emp) => (
                   <div
-                    key={emp.id}
-                    className="flex items-center gap-3 p-4 rounded-xl border border-border/60 hover:border-border hover:shadow-sm bg-background cursor-pointer transition-all"
-                    onClick={() => setSelectedEmployee(emp)}
-                  >
+                    key={emp._id}
+                    className="flex items-center gap-3 p-4 rounded-xl border border-border/60 hover:border-border hover:shadow-sm bg-background cursor-pointer transition-all">
                     <div
                       className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold shrink-0"
                       style={{ backgroundColor: `${PRIMARY}18`, color: PRIMARY }}
@@ -172,74 +183,7 @@ export default function Departments() {
           </div>
         </div>
 
-        {/* Employee Detail Dialog */}
-        <Dialog open={!!selectedEmployee} onOpenChange={() => setSelectedEmployee(null)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Employee Details</DialogTitle>
-            </DialogHeader>
-            {selectedEmployee && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div
-                    className="flex h-14 w-14 items-center justify-center rounded-full text-lg font-bold shrink-0"
-                    style={{ backgroundColor: `${PRIMARY}18`, color: PRIMARY }}
-                  >
 
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
-                      <img style={{ borderRadius: 20 }} src={selectedEmployee.avatar} alt="image not available" />
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">{selectedEmployee.name}</h3>
-                    <p className="text-sm text-muted-foreground">{selectedEmployee.role}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground text-xs mb-0.5">Department</p>
-                    <p className="font-medium">{selectedEmployee.department}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs mb-0.5">Status</p>
-                    <Badge
-                      variant="outline"
-                      className={
-                        selectedEmployee.status === "active"
-                          ? "bg-success/10 text-success border-success/20"
-                          : selectedEmployee.status === "on-leave"
-                            ? "bg-warning/10 text-warning border-warning/20"
-                            : "bg-muted text-muted-foreground"
-                      }
-                    >
-                      {selectedEmployee.status}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs mb-0.5">Join Date</p>
-                    <p className="font-medium">{selectedEmployee.joinDate}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs mb-0.5">Salary</p>
-                    <p className="font-medium">${selectedEmployee.salary.toLocaleString()}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2 pt-2 border-t">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{selectedEmployee.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{selectedEmployee.phone}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
       </AppLayout>
     );
   }

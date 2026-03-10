@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useNavigate } from "react-router-dom";
+const token = localStorage.getItem("token");
 
 // ── Google Fonts loader ──────────────────────────────────────────────────────
 const fontLink = document.createElement("link");
@@ -9,34 +10,21 @@ fontLink.href =
     "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap";
 document.head.appendChild(fontLink);
 
-// ── Types & data ─────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 type Status = "active" | "on-leave" | "inactive";
 
 interface Employee {
-    id: string;
+    _id: string;
     name: string;
-    initials: string;
+    avatar: string;
     role: string;
-    dept: string;
+    department: string;
     status: Status;
     join: string;
     task: string;
 }
 
-const EMPLOYEES: Employee[] = [
-    { id: "1", name: "Sarah Johnson", initials: "SJ", role: "Engineering Manager", dept: "Engineering", status: "active", join: "2022-03-15", task: "Sprint planning & code review" },
-    { id: "2", name: "Michael Chen", initials: "MC", role: "Senior Designer", dept: "Design", status: "active", join: "2021-07-22", task: "Redesigning login page" },
-    { id: "3", name: "Emily Rodriguez", initials: "ER", role: "HR Specialist", dept: "Human Resources", status: "active", join: "2023-01-10", task: "Onboarding 3 new hires" },
-    { id: "4", name: "James Wilson", initials: "JW", role: "Product Manager", dept: "Product", status: "on-leave", join: "2020-11-05", task: "Currently on leave" },
-    { id: "5", name: "Lisa Park", initials: "LP", role: "Software Engineer", dept: "Engineering", status: "active", join: "2023-06-18", task: "API integration work" },
-    { id: "6", name: "David Kim", initials: "DK", role: "Marketing Lead", dept: "Marketing", status: "active", join: "2021-09-30", task: "Q2 campaign launch" },
-    { id: "7", name: "Anna Thompson", initials: "AT", role: "Finance Analyst", dept: "Finance", status: "active", join: "2022-08-14", task: "Monthly report compilation" },
-    { id: "8", name: "Robert Davis", initials: "RD", role: "DevOps Engineer", dept: "Engineering", status: "inactive", join: "2021-04-01", task: "Account inactive" },
-    { id: "9", name: "Maria Garcia", initials: "MG", role: "UX Researcher", dept: "Design", status: "active", join: "2023-02-28", task: "User interview sessions" },
-    { id: "10", name: "Chris Lee", initials: "CL", role: "Sales Director", dept: "Sales", status: "active", join: "2020-06-12", task: "Enterprise client meetings" },
-];
-
-const DEPARTMENTS = ["Engineering", "Design", "Human Resources", "Product", "Marketing", "Finance", "Sales"];
+const DEPARTMENTS = ["Software Engineering Department", "AI & Research Department", "Cybersecurity Department", "Project Management Office(PMO)", "Marketing & Branding", "Administration & Finance"];
 
 // ── Status badge ─────────────────────────────────────────────────────────────
 const tagStyles: Record<Status, React.CSSProperties> = {
@@ -65,34 +53,47 @@ function StatusTag({ status }: { status: Status }) {
     );
 }
 
-// ── Avatar ────────────────────────────────────────────────────────────────────
-function Avatar({ initials, size = 36 }: { initials: string; size?: number }) {
-    return (
-        <div style={{
-            width: size, height: size,
-            borderRadius: "50%",
-            background: "#ccfbf1",
-            color: "#0f766e",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: size * 0.31,
-            fontWeight: 700,
-            fontFamily: "'DM Sans', sans-serif",
-            letterSpacing: "0.5px",
-            flexShrink: 0,
-        }}>
-            {initials}
-        </div>
-    );
-}
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function TeamTrack() {
     const navigate = useNavigate();
 
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
     const [search, setSearch] = useState("");
-    const [dateFrom, setFrom] = useState("");
-    const [dateTo, setTo] = useState("");
+
     const [dept, setDept] = useState("");
+
+    // ── Fetch from backend ────────────────────────────────────────────────────
+    useEffect(() => {
+        const fetchEmployees = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/teamtrack/employee`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                });
+                if (res.status === 402) {
+                    navigate("/unauthorized", { replace: true });
+                    return; // ← stop execution after redirect
+                }
+                if (!res.ok) throw new Error(`Server error: ${res.status} ${res.statusText}`);
+                const data: Employee[] = await res.json();
+                setEmployees(data);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : "Failed to fetch employees");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchEmployees();
+    }, []);
 
     const handleEmployeeClick = (id: string) => navigate(`/workflow/${id}`);
 
@@ -100,20 +101,17 @@ export default function TeamTrack() {
         weekday: "long", year: "numeric", month: "long", day: "numeric",
     });
 
-    const filtered = useMemo(() => EMPLOYEES.filter(e => {
+    const filtered = useMemo(() => employees.filter(e => {
         if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false;
-        if (dept && e.dept !== dept) return false;
-        if (dateFrom && e.join < dateFrom) return false;
-        if (dateTo && e.join > dateTo) return false;
+        if (dept && e.department !== dept) return false;
+
         return true;
-    }), [search, dateFrom, dateTo, dept]);
+    }), [employees, search, dept]);
 
     const activeToday = filtered.filter(e => e.status === "active");
 
     // ── Shared styles ─────────────────────────────────────────────────────────
-    const BASE: React.CSSProperties = {
-        fontFamily: "'DM Sans', sans-serif",
-    };
+    const BASE: React.CSSProperties = { fontFamily: "'DM Sans', sans-serif" };
 
     const inputStyle: React.CSSProperties = {
         ...BASE,
@@ -137,6 +135,84 @@ export default function TeamTrack() {
         textTransform: "uppercase" as const,
         letterSpacing: "0.8px",
     };
+
+    // ── Loading state ─────────────────────────────────────────────────────────
+    if (loading) return (
+        <AppLayout title="Team Track">
+            <div style={{
+                ...BASE,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: "100vh",
+                background: "#f4f6f8",
+                gap: 12,
+            }}>
+                <div style={{
+                    width: 32, height: 32,
+                    border: "3px solid #e5e7eb",
+                    borderTop: "3px solid #0f766e",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                }} />
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                <span style={{ fontSize: 13, color: "#9ca3af", fontFamily: "'DM Mono', monospace" }}>
+                    Loading employees…
+                </span>
+            </div>
+        </AppLayout>
+    );
+
+    // ── Error state ───────────────────────────────────────────────────────────
+    // if (error) return (
+    //     <AppLayout title="Team Track">
+    //         <div style={{
+    //             ...BASE,
+    //             display: "flex",
+    //             flexDirection: "column",
+    //             alignItems: "center",
+    //             justifyContent: "center",
+    //             minHeight: "100vh",
+    //             background: "#f4f6f8",
+    //             gap: 12,
+    //         }}>
+    //             <div style={{
+    //                 background: "#fff",
+    //                 border: "1px solid #fecaca",
+    //                 borderRadius: 12,
+    //                 padding: "24px 32px",
+    //                 textAlign: "center",
+    //                 maxWidth: 400,
+    //                 boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+    //             }}>
+    //                 <div style={{ fontSize: 24, marginBottom: 8 }}></div>
+    //                 <div style={{ fontSize: 14, fontWeight: 600, color: "#dc2626", marginBottom: 6 }}>
+    //                     Failed to load employees
+    //                 </div>
+    //                 <div style={{ fontSize: 12, color: "#9ca3af", fontFamily: "'DM Mono', monospace", marginBottom: 16 }}>
+    //                     {error}
+    //                 </div>
+    //                 <button
+    //                     onClick={() => window.location.reload()}
+    //                     style={{
+    //                         background: "#134e4a",
+    //                         color: "#fff",
+    //                         border: "none",
+    //                         padding: "8px 20px",
+    //                         borderRadius: 8,
+    //                         fontSize: 13,
+    //                         fontWeight: 600,
+    //                         cursor: "pointer",
+    //                         fontFamily: "'DM Sans', sans-serif",
+    //                     }}
+    //                 >
+    //                     Retry
+    //                 </button>
+    //             </div>
+    //         </div>
+    //     </AppLayout>
+    // );
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
@@ -172,28 +248,6 @@ export default function TeamTrack() {
                         />
                     </div>
 
-                    {/* From date */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                        <label style={labelStyle}>From date</label>
-                        <input
-                            type="date"
-                            value={dateFrom}
-                            onChange={e => setFrom(e.target.value)}
-                            style={{ ...inputStyle, width: 150 }}
-                        />
-                    </div>
-
-                    {/* To date */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                        <label style={labelStyle}>To date</label>
-                        <input
-                            type="date"
-                            value={dateTo}
-                            onChange={e => setTo(e.target.value)}
-                            style={{ ...inputStyle, width: 150 }}
-                        />
-                    </div>
-
                     {/* Department */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                         <label style={labelStyle}>Department</label>
@@ -203,7 +257,7 @@ export default function TeamTrack() {
                             style={{ ...inputStyle, width: 175, cursor: "pointer" }}
                         >
                             <option value="">All Departments</option>
-                            {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
                     </div>
                 </div>
@@ -246,8 +300,8 @@ export default function TeamTrack() {
                         ) : (
                             filtered.map((e, i) => (
                                 <div
-                                    key={e.id}
-                                    onClick={() => handleEmployeeClick(e.id)}
+                                    key={e._id}
+                                    onClick={() => handleEmployeeClick(e._id)}
                                     style={{
                                         display: "grid",
                                         gridTemplateColumns: "2.5fr 1.4fr 1fr",
@@ -261,7 +315,9 @@ export default function TeamTrack() {
                                     onMouseLeave={el => (el.currentTarget.style.background = "transparent")}
                                 >
                                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                        <Avatar initials={e.initials} />
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
+                                            <img style={{ borderRadius: 20 }} src={e.avatar} alt="image not available" />
+                                        </div>
                                         <div>
                                             <div style={{
                                                 fontFamily: "'DM Sans', sans-serif",
@@ -291,7 +347,7 @@ export default function TeamTrack() {
                                         fontWeight: 400,
                                         color: "#374151",
                                     }}>
-                                        {e.dept}
+                                        {e.department}
                                     </span>
                                     <StatusTag status={e.status} />
                                 </div>
@@ -356,8 +412,8 @@ export default function TeamTrack() {
                         ) : (
                             activeToday.map(e => (
                                 <div
-                                    key={e.id}
-                                    onClick={() => handleEmployeeClick(e.id)}
+                                    key={e._id}
+                                    onClick={() => handleEmployeeClick(e._id)}
                                     style={{
                                         border: "1px solid #e5e7eb",
                                         borderRadius: 10,
@@ -371,7 +427,9 @@ export default function TeamTrack() {
                                 >
                                     {/* Card header */}
                                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                                        <Avatar initials={e.initials} size={34} />
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
+                                            <img style={{ borderRadius: 20 }} src={e.avatar} alt="image not available" />
+                                        </div>
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{
                                                 fontFamily: "'DM Sans', sans-serif",
@@ -401,7 +459,7 @@ export default function TeamTrack() {
                                             </div>
                                         </div>
                                         <button
-                                            onClick={() => handleEmployeeClick(e.id)}
+                                            onClick={(ev) => { ev.stopPropagation(); handleEmployeeClick(e._id); }}
                                             style={{
                                                 background: "#134e4a",
                                                 color: "#fff",
@@ -421,7 +479,7 @@ export default function TeamTrack() {
                                     </div>
 
                                     {/* Current task */}
-                                    < div style={{
+                                    <div style={{
                                         fontFamily: "'DM Mono', monospace",
                                         fontSize: 9,
                                         fontWeight: 500,
@@ -440,7 +498,7 @@ export default function TeamTrack() {
                                         lineHeight: 1.5,
                                         marginBottom: 8,
                                     }}>
-                                        {e.task}
+                                        {e.task ?? "Task not added"}
                                     </div>
 
                                     {/* Dept chip */}
@@ -455,14 +513,14 @@ export default function TeamTrack() {
                                         color: "#6b7280",
                                         letterSpacing: "0.2px",
                                     }}>
-                                        {e.dept}
+                                        {e.department}
                                     </span>
                                 </div>
                             ))
                         )}
                     </div>
                 </div>
-            </div >
-        </AppLayout >
+            </div>
+        </AppLayout>
     );
 }
