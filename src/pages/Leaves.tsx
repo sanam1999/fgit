@@ -153,10 +153,10 @@ function AddHolidayModal({
               onChange={e => setType(e.target.value as Holiday["type"])}
               className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring text-foreground"
             >
-              <option value="national">🏛 National</option>
-              <option value="religious">🕌 Religious</option>
-              <option value="optional">🌿 Optional</option>
-              <option value="other">📌 Other</option>
+              <option value="national">National</option>
+              <option value="religious">Religious</option>
+              <option value="optional">Optional</option>
+              <option value="other">Other</option>
             </select>
           </div>
         </div>

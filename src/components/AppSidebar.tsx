@@ -23,6 +23,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/context/AuthContext";
 
 const mainNav = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -41,6 +42,7 @@ const managementNav = [
 ];
 
 export function AppSidebar() {
+  const { user: authUser } = useAuth();
   return (
     <Sidebar className="border-r-0">
       <SidebarHeader className="p-5 border-b border-sidebar-border">
@@ -111,10 +113,11 @@ export function AppSidebar() {
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-medium">
               <UserCircle className="h-5 w-5" />
+              
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">Admin User</p>
-              <p className="text-[11px] text-sidebar-muted truncate">admin@company.com</p>
+              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">{authUser.name}</p>
+              <p className="text-[11px] text-sidebar-muted truncate">{authUser.email}</p>
             </div>
           </div>
         </NavLink>

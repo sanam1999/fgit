@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { Search, Plus, Mail, Phone } from "lucide-react";
+import { Search, Plus, Mail, Phone, Trash, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,8 @@ export default function Employees() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [employeeList, setEmployeeList] = useState<Attendance[]>([]);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Attendance | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   async function getuserdata() {
     try {
@@ -77,14 +80,11 @@ export default function Employees() {
       });
       if (res.status === 402) {
         navigate("/unauthorized", { replace: true });
-        return; // ← stop execution after redirect
+        return;
       }
       if (!res.ok) throw new Error(`Request failed: ${res.status}`);
       const data: Attendance[] = await res.json();
-      // FIX 1: Removed stale closure console.log(employeeList) — state hasn't
-      // updated yet at this point so it always logged the old value.
       setEmployeeList(data);
-
     } catch (error) {
       console.log(error);
     }
@@ -111,7 +111,6 @@ export default function Employees() {
   };
 
   const handleAddEmployee = async () => {
-
     if (!form.name || !form.role || !form.department || !form.email || !form.joinDate) {
       toast.error("Please fill in all required fields!");
       return;
@@ -127,7 +126,7 @@ export default function Employees() {
       });
       if (res.status === 402) {
         navigate("/unauthorized", { replace: true });
-        return; // ← stop execution after redirect
+        return;
       }
       if (!res.ok) throw new Error("Failed to update");
       setForm(EMPTY_FORM);
@@ -140,7 +139,32 @@ export default function Employees() {
     }
   };
 
-
+  async function confirmDeleteUser() {
+    if (!employeeToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/employee/${employeeToDelete._id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+      });
+      if (res.status === 402) {
+        navigate("/unauthorized", { replace: true });
+        return;
+      }
+      if (!res.ok) throw new Error(`Failed to delete: ${res.status}`);
+      toast.success(`${employeeToDelete.fullName} has been removed.`);
+      setEmployeeToDelete(null);
+      getuserdata();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      toast.error(message);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   return (
     <AppLayout title="Employees">
@@ -172,17 +196,16 @@ export default function Employees() {
                   <th className="text-left text-xs font-semibold text-muted-foreground p-3">Status</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground p-3 hidden lg:table-cell">check In</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground p-3 hidden lg:table-cell">check Out</th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground p-3 hidden lg:table-cell">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredList.map((emp) => (
-
                   <tr
                     key={emp._id}
                     className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
                     onClick={() => setSelectedEmployee(emp)}
                   >
-
                     <td className="p-3 pl-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
@@ -205,25 +228,36 @@ export default function Employees() {
                             : emp.status === "on-leave"
                               ? "bg-warning/10 text-warning border-warning/20"
                               : "bg-red-500/10 text-red-500 border border-red-500/20"
-
                         }
                       >
                         {emp.status}
                       </Badge>
                     </td>
-
-                    <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{emp.checkIn ? new Date(emp.checkIn).toLocaleDateString('en-US', {
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true
-                    }) : "—"}</td>
-                    <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{emp.checkOut ? new Date(emp.checkOut).toLocaleDateString('en-US', {
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true
-                    }) : "—"}</td>
+                    <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">
+                      {emp.checkIn ? new Date(emp.checkIn).toLocaleDateString('en-US', {
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true
+                      }) : "—"}
+                    </td>
+                    <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">
+                      {emp.checkOut ? new Date(emp.checkOut).toLocaleDateString('en-US', {
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true
+                      }) : "—"}
+                    </td>
+                    <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">
+                      <Trash
+                        className="h-5 w-5 text-red-500 hover:text-red-700 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation(); // prevent row click opening employee detail dialog
+                          setEmployeeToDelete(emp);
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -244,7 +278,6 @@ export default function Employees() {
           {selectedEmployee && (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                {/* FIX 2: Render avatar as <img> instead of raw string */}
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 overflow-hidden">
                   <img
                     src={selectedEmployee.avatar}
@@ -257,13 +290,14 @@ export default function Employees() {
                   <p className="text-sm text-muted-foreground">{selectedEmployee.role}</p>
                 </div>
               </div>
-              <p> Join Date:  {selectedEmployee.joinDate
-                ? new Date(selectedEmployee.checkIn).toLocaleDateString('en-US', {
+              <p> Join Date: {selectedEmployee.joinDate
+                ? new Date(selectedEmployee.joinDate).toLocaleDateString('en-US', {
                   day: "numeric",
                   year: "numeric",
                   month: "numeric"
                 })
-                : "—"}</p>
+                : "—"}
+              </p>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-muted-foreground text-xs mb-0.5">Department</p>
@@ -279,7 +313,6 @@ export default function Employees() {
                         : selectedEmployee.status === "on-leave"
                           ? "bg-warning/10 text-warning border-warning/20"
                           : "bg-red-500/10 text-red-500 border border-red-500/20"
-
                     }
                   >
                     {selectedEmployee.status}
@@ -295,11 +328,11 @@ export default function Employees() {
                         minute: "2-digit",
                         hour12: true
                       })
-                      : "—"}</p>
+                      : "—"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs mb-0.5">Check Out</p>
-                  {/* FIX 3: Was showing checkIn for both, and had a stray $ sign */}
                   <p className="font-medium">{
                     selectedEmployee.checkOut
                       ? new Date(selectedEmployee.checkOut).toLocaleDateString('en-US', {
@@ -308,7 +341,8 @@ export default function Employees() {
                         minute: "2-digit",
                         hour12: true
                       })
-                      : "—"}</p>
+                      : "—"}
+                  </p>
                 </div>
               </div>
               <div className="space-y-2 pt-2 border-t">
@@ -320,10 +354,64 @@ export default function Employees() {
                   <Phone className="h-4 w-4 text-muted-foreground" />
                   <span>{selectedEmployee.phone}</span>
                 </div>
-
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!employeeToDelete} onOpenChange={(open) => { if (!open) setEmployeeToDelete(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Remove Employee
+            </DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. The employee record will be permanently deleted.
+            </DialogDescription>
+          </DialogHeader>
+
+          {employeeToDelete && (
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50 border">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 overflow-hidden shrink-0">
+                <img
+                  src={employeeToDelete.avatar}
+                  alt={employeeToDelete.fullName}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">{employeeToDelete.fullName}</p>
+                <p className="text-xs text-muted-foreground">{employeeToDelete.role}</p>
+                <p className="text-xs text-muted-foreground">{employeeToDelete.department}</p>
+              </div>
+            </div>
+          )}
+
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to remove <span className="font-medium text-foreground">{employeeToDelete?.fullName}</span> from the system?
+          </p>
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setEmployeeToDelete(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteUser}
+              disabled={isDeleting}
+              className="gap-2"
+            >
+              <Trash className="h-4 w-4" />
+              {isDeleting ? "Removing..." : "Remove Employee"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -384,10 +472,9 @@ export default function Employees() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="salary">Salary </Label>
+                <Label htmlFor="salary">Salary</Label>
                 <Input
                   id="salary"
-
                   type="number"
                   placeholder="LKR 50,000"
                   value={form.salary}
